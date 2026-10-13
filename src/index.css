@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0c0c0d;
+  --color-panel: #141416;
+  --color-panel-2: #1b1b1f;
+  --color-line: #27272c;
+  --color-line-2: #35353c;
+  --color-fg: #ececf1;
+  --color-fg-2: #a3a3ad;
+  --color-fg-3: #6b6b75;
+  --color-acid: #c8ff4d;
+  --color-acid-dim: #8fb834;
+  --color-danger: #ff6b6b;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+html, body, #root { height: 100%; }
+#root { overflow-x: auto; }
+body { background: var(--color-ink); color: var(--color-fg); font-family: var(--font-sans); font-size: 13px; -webkit-font-smoothing: antialiased; }
+
+* { scrollbar-width: thin; scrollbar-color: var(--color-line-2) transparent; }
+textarea, input, select { outline: none; }
+textarea:focus, input:focus, select:focus { box-shadow: 0 0 0 1px var(--color-acid-dim); }
+
+.btn { @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-line-2 bg-panel-2 px-2.5 py-1.5 text-xs font-medium text-fg hover:bg-line transition-colors disabled:opacity-40 disabled:cursor-not-allowed; }
+.btn-primary { @apply border-acid bg-acid text-ink hover:bg-acid-dim hover:border-acid-dim; }
+.btn-ghost { @apply border-transparent bg-transparent text-fg-2 hover:text-fg hover:bg-panel-2; }
+.field { @apply w-full rounded-md border border-line-2 bg-ink px-2.5 py-1.5 text-sm text-fg placeholder:text-fg-3; }
+.label { @apply text-[11px] uppercase tracking-wider text-fg-3 font-semibold; }
+.kbd { @apply rounded border border-line-2 bg-panel-2 px-1 py-px font-mono text-[10px] text-fg-2; }
