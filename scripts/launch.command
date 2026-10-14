@@ -3,7 +3,9 @@
 # Close this Terminal window (or press Ctrl+C) to stop the server.
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-APP_DIR="/Users/finn/Documents/claude/seedance-prompter"
+# The project folder: this script's parent directory. If you copy this file
+# elsewhere (e.g. your Desktop), set APP_DIR to the project's absolute path.
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PORT=5182
 URL="http://localhost:$PORT"
 
