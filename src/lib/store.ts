@@ -36,9 +36,19 @@ export function saveSettings(s: Settings) {
   }
 }
 
-export function newConversation(): Conversation {
+export function newConversation(from?: Conversation): Conversation {
   const now = Date.now()
-  return { id: uid(), title: 'New shot', createdAt: now, updatedAt: now, turns: [], sentRefIds: [], ledgerSignature: '' }
+  return {
+    id: uid(),
+    title: 'New shot',
+    createdAt: now,
+    updatedAt: now,
+    references: from ? from.references.map((r) => ({ ...r, id: uid() })) : [],
+    context: from ? { ...from.context } : { text: '' },
+    turns: [],
+    sentRefIds: [],
+    ledgerSignature: '',
+  }
 }
 
 export type Action =
@@ -55,30 +65,36 @@ export type Action =
   | { type: 'appendTurn'; conversationId: string; turn: Turn; sentRefIds?: string[]; ledgerSignature?: string; contextSignature?: string }
   | { type: 'removeTurn'; conversationId: string; turnId: string }
 
-const EMPTY: PersistedData = { references: [], context: { text: '' }, conversations: [], activeConversationId: null }
+const EMPTY: PersistedData = { conversations: [], activeConversationId: null }
+
+function updateActive(state: PersistedData, fn: (c: Conversation) => Conversation): PersistedData {
+  return { ...state, conversations: state.conversations.map((c) => (c.id === state.activeConversationId ? fn(c) : c)) }
+}
 
 function reducer(state: PersistedData, action: Action): PersistedData {
   switch (action.type) {
     case 'hydrate':
       return action.data
     case 'addReference':
-      return { ...state, references: [...state.references, action.ref] }
+      return updateActive(state, (c) => ({ ...c, references: [...c.references, action.ref] }))
     case 'updateReference':
-      return { ...state, references: state.references.map((r) => (r.id === action.id ? { ...r, ...action.patch } : r)) }
+      return updateActive(state, (c) => ({ ...c, references: c.references.map((r) => (r.id === action.id ? { ...r, ...action.patch } : r)) }))
     case 'removeReference':
-      return { ...state, references: state.references.filter((r) => r.id !== action.id) }
-    case 'moveReference': {
-      const i = state.references.findIndex((r) => r.id === action.id)
-      const j = i + action.dir
-      if (i < 0 || j < 0 || j >= state.references.length) return state
-      const refs = [...state.references]
-      ;[refs[i], refs[j]] = [refs[j], refs[i]]
-      return { ...state, references: refs }
-    }
+      return updateActive(state, (c) => ({ ...c, references: c.references.filter((r) => r.id !== action.id) }))
+    case 'moveReference':
+      return updateActive(state, (c) => {
+        const i = c.references.findIndex((r) => r.id === action.id)
+        const j = i + action.dir
+        if (i < 0 || j < 0 || j >= c.references.length) return c
+        const refs = [...c.references]
+        ;[refs[i], refs[j]] = [refs[j], refs[i]]
+        return { ...c, references: refs }
+      })
     case 'setContext':
-      return { ...state, context: action.context }
+      return updateActive(state, (c) => ({ ...c, context: action.context }))
     case 'newConversation': {
-      const c = newConversation()
+      const current = state.conversations.find((c) => c.id === state.activeConversationId)
+      const c = newConversation(current)
       return { ...state, conversations: [c, ...state.conversations], activeConversationId: c.id }
     }
     case 'selectConversation':
@@ -122,6 +138,26 @@ function reducer(state: PersistedData, action: Action): PersistedData {
   }
 }
 
+/** Bring older saved data up to the current shape: references and context live on each conversation. */
+function migrate(data: PersistedData | undefined): PersistedData {
+  const d: PersistedData = { ...EMPTY, ...(data ?? {}) }
+  const legacyRefs = d.references ?? []
+  const legacyContext = d.context ?? { text: '' }
+  const conversations = d.conversations.map((c) => ({
+    ...c,
+    references: c.references ?? legacyRefs.map((r) => ({ ...r, id: r.id })),
+    context: c.context ?? { ...legacyContext },
+  }))
+  if (conversations.length === 0) {
+    const c = newConversation()
+    c.references = legacyRefs
+    c.context = legacyContext
+    conversations.push(c)
+  }
+  const activeConversationId = conversations.some((c) => c.id === d.activeConversationId) ? d.activeConversationId : conversations[0].id
+  return { conversations, activeConversationId }
+}
+
 function titleFrom(text: string): string {
   const t = text.trim().replace(/\s+/g, ' ')
   if (!t) return 'New shot'
@@ -138,9 +174,7 @@ export function useStore() {
     let cancelled = false
     get<PersistedData>(DATA_KEY).then((data) => {
       if (cancelled) return
-      const d: PersistedData = { ...EMPTY, ...(data ?? {}) }
-      const hydrated = d.conversations.length ? d : { ...d, conversations: [newConversation()] }
-      if (!hydrated.activeConversationId) hydrated.activeConversationId = hydrated.conversations[0].id
+      const hydrated = migrate(data)
       dispatch({ type: 'hydrate', data: hydrated })
       setReady(true)
     })

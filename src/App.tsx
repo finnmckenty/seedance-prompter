@@ -49,7 +49,8 @@ export default function App() {
   const noKey = !settings.apiKey
 
   function insertReference(ref: Reference) {
-    const label = labelsFor(state.references).get(ref.id) ?? ''
+    if (!conversation) return
+    const label = labelsFor(conversation.references).get(ref.id) ?? ''
     const el = textareaRef.current
     const text = mentionText(ref, label)
     const start = el?.selectionStart ?? draft.length
@@ -73,13 +74,13 @@ export default function App() {
     if (!text) return
     setError(null)
 
-    const refs = state.references
+    const refs = conversation.references
     const labels = labelsFor(refs)
     const ledger = buildLedger(refs)
     const ledgerChanged = conversation.turns.length === 0 || ledger !== conversation.ledgerSignature
     const newRefs = refs.filter((r) => r.imageData && !conversation.sentRefIds.includes(r.id))
 
-    const contextText = state.context.text.trim() ? state.context.text : ''
+    const contextText = conversation.context.text.trim() ? conversation.context.text : ''
     const contextChanged = contextText !== '' && contextText !== (conversation.contextSignature ?? '')
 
     const blocks: Anthropic.Beta.BetaContentBlockParam[] = []
@@ -175,8 +176,8 @@ export default function App() {
     }
   }
 
-  const ledgerStale = conversation.turns.length > 0 && buildLedger(state.references) !== conversation.ledgerSignature
-  const contextStale = conversation.turns.length > 0 && state.context.text.trim() !== '' && state.context.text !== (conversation.contextSignature ?? '')
+  const ledgerStale = conversation.turns.length > 0 && buildLedger(conversation.references) !== conversation.ledgerSignature
+  const contextStale = conversation.turns.length > 0 && conversation.context.text.trim() !== '' && conversation.context.text !== (conversation.contextSignature ?? '')
 
   return (
     <div className="flex h-full min-w-[1080px] flex-col">
@@ -201,8 +202,19 @@ export default function App() {
               </option>
             ))}
           </select>
-          <button type="button" className="btn btn-ghost" onClick={() => dispatch({ type: 'newConversation' })} title="New shot">
+          <button type="button" className="btn btn-ghost" onClick={() => dispatch({ type: 'newConversation' })} title="New shot (copies this shot's references and context)">
             <Plus /> New
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            title="Rename this shot"
+            onClick={() => {
+              const title = window.prompt('Shot name', conversation.title)
+              if (title?.trim()) dispatch({ type: 'renameConversation', id: conversation.id, title: title.trim() })
+            }}
+          >
+            Rename
           </button>
           <button
             type="button"
@@ -249,11 +261,11 @@ export default function App() {
 
       <div className="flex min-h-0 flex-1">
         <ReferenceRail
-          references={state.references}
+          references={conversation.references}
           sentRefIds={conversation.sentRefIds}
           dispatch={dispatch}
           onInsert={insertReference}
-          context={state.context}
+          context={conversation.context}
           contextSent={conversation.contextSignature}
         />
 
@@ -269,7 +281,7 @@ export default function App() {
           )}
           <Chat
             conversation={conversation}
-            references={state.references}
+            references={conversation.references}
             streaming={streaming}
             error={error}
             showThinking={settings.showThinking}
@@ -277,7 +289,7 @@ export default function App() {
           />
           <Composer
             textareaRef={textareaRef}
-            references={state.references}
+            references={conversation.references}
             draft={draft}
             setDraft={setDraft}
             attachments={attachments}
@@ -295,7 +307,7 @@ export default function App() {
           />
         </main>
 
-        <PromptPanel versions={versions} references={state.references} onInsert={insertReference} />
+        <PromptPanel versions={versions} references={conversation.references} onInsert={insertReference} />
       </div>
 
       {showSettings && <SettingsDialog settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} skillVersion={SKILL_VERSION} />}

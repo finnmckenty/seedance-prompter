@@ -70,6 +70,10 @@ export interface Conversation {
   title: string
   createdAt: number
   updatedAt: number
+  /** This shot's reference set. Each shot keeps its own. */
+  references: Reference[]
+  /** This shot's story context. New shots copy it from the current one. */
+  context: StoryContext
   turns: Turn[]
   /** Reference ids whose media has already been sent in this conversation. */
   sentRefIds: string[]
@@ -94,8 +98,9 @@ export interface StoryContext {
 }
 
 export interface PersistedData {
-  references: Reference[]
-  context: StoryContext
   conversations: Conversation[]
   activeConversationId: string | null
+  /** Pre-per-shot data shape; migrated into each conversation on load. */
+  references?: Reference[]
+  context?: StoryContext
 }
